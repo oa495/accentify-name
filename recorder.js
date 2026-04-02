@@ -368,7 +368,7 @@ function saveRecording() {
   recCount++;
 
   const now   = new Date();
-  const label = `#${recCount} · ${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`;
+  const label = `#${recCount} · ${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`; // format as "#N · H:MM"
   const duration = seconds;
   const m = Math.floor(duration / 60), s = String(duration % 60).padStart(2, '0'); // format mm:ss
 
