@@ -23,7 +23,18 @@ let currentTranscript = '';
 
 const isV = c => 'aeiou'.includes(c);
 
-// Break a word into CV syllables
+/**
+ * Splits a lowercase word into CV syllables.
+ * Uses a simple consonant-cluster rule: one consonant before the next
+ * vowel goes with the next syllable; two or more consonants split so the
+ * first stays with the current syllable.
+ *
+ * @param {string} w - Lowercase alphabetic word to syllabify.
+ * @returns {string[]} Array of syllable strings, e.g. ['a', 'ma', 'ye', 'li'].
+ *
+ * @example
+ * syllabify('amayeli'); // ['a', 'ma', 'ye', 'li']
+ */
 function syllabify(w) {
   const syllables = [];
   let syl = '';
@@ -53,7 +64,20 @@ function syllabify(w) {
   return syllables.filter(Boolean);
 }
 
-// Convert one syllable's characters to respelling phonemes
+/**
+ * Converts a single syllable string to its human-readable phoneme respelling.
+ * Processes multi-character digraphs first (longest match), then maps
+ * individual vowels to pure-vowel equivalents and consonants to their
+ * spoken equivalents.
+ *
+ * @param {string} syl - A single syllable (lowercase, alphabetic).
+ * @returns {string} Respelling string, e.g. 'mah', 'yeh', 'lee'.
+ *
+ * @example
+ * syllableToRespelling('ma'); // 'mah'
+ * syllableToRespelling('ye'); // 'yeh'
+ * syllableToRespelling('shi'); // 'shee'
+ */
 function syllableToRespelling(syl) {
   const DIGRAPHS = {
     'tch':'ch', 'sch':'sk',              // 3-char (checked first via slice)
@@ -96,12 +120,34 @@ function syllableToRespelling(syl) {
   return out;
 }
 
+/**
+ * Converts a single word to a hyphen-separated pronunciation respelling.
+ *
+ * @param {string} word - The word to convert (any case, may contain non-alpha chars).
+ * @returns {string} Hyphenated respelling, e.g. 'ah-mah-yeh-lee', or empty string if input is empty.
+ *
+ * @example
+ * wordToRespelling('Amayeli'); // 'ah-mah-yeh-lee'
+ * wordToRespelling('Yuki');    // 'yoo-kee'
+ */
 function wordToRespelling(word) {
   const w = word.toLowerCase().replace(/[^a-z]/g, '');
   if (!w) return '';
   return syllabify(w).map(syllableToRespelling).filter(Boolean).join('-');
 }
 
+/**
+ * Converts a text transcript to a full pronunciation respelling.
+ * Multiple words are separated by two spaces for readability.
+ *
+ * @param {string} text - The transcript text to convert.
+ * @returns {string|null} Respelling string (e.g. 'ah-mah-yeh-lee'), or null if input is empty.
+ *
+ * @example
+ * textToRespelling('Amayeli');       // 'ah-mah-yeh-lee'
+ * textToRespelling('Maria Jose');    // 'mah-ree-ah  yoh-seh'
+ * textToRespelling('');              // null
+ */
 function textToRespelling(text) {
   if (!text || !text.trim()) return null;
   const result = text.trim().split(/\s+/).filter(Boolean).map(wordToRespelling).join('  ');
@@ -111,6 +157,13 @@ function textToRespelling(text) {
 // --- Speech Recognition ---
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
+/**
+ * Starts a SpeechRecognition session that accumulates the spoken transcript
+ * into the module-level `currentTranscript` variable.
+ * Does nothing if the browser does not support SpeechRecognition.
+ *
+ * @returns {void}
+ */
 function startRecognition() {
   if (!SpeechRecognition) return;
   recognition = new SpeechRecognition();
@@ -135,11 +188,22 @@ function startRecognition() {
   recognition.start();
 }
 
+/**
+ * Stops the active SpeechRecognition session, if one is running.
+ *
+ * @returns {void}
+ */
 function stopRecognition() {
   if (recognition) { recognition.stop(); recognition = null; }
 }
 
 // --- Visualizer ---
+
+/**
+ * Draws the idle (flat line) state on the visualizer canvas.
+ *
+ * @returns {void}
+ */
 function drawIdle() {
   const w = canvas.width, h = canvas.height;
   ctx.clearRect(0, 0, w, h);
@@ -154,6 +218,13 @@ function drawIdle() {
   ctx.stroke();
 }
 
+/**
+ * Draws one frame of the live waveform on the visualizer canvas using
+ * time-domain data from the Web Audio analyser node, then schedules itself
+ * via requestAnimationFrame for the next frame.
+ *
+ * @returns {void}
+ */
 function drawLive() {
   animFrameId = requestAnimationFrame(drawLive);
   const w = canvas.width, h = canvas.height;
@@ -181,6 +252,12 @@ function drawLive() {
   ctx.stroke();
 }
 
+/**
+ * Resizes the visualizer canvas to match its CSS layout size and redraws
+ * the idle state if not currently recording.
+ *
+ * @returns {void}
+ */
 function resizeCanvas() {
   canvas.width  = canvas.offsetWidth;
   canvas.height = canvas.offsetHeight;
@@ -188,6 +265,12 @@ function resizeCanvas() {
 }
 
 // --- Timer ---
+
+/**
+ * Resets and starts the recording timer, updating the timer display every second.
+ *
+ * @returns {void}
+ */
 function startTimer() {
   seconds = 0;
   timerEl.textContent = '0:00';
@@ -199,6 +282,11 @@ function startTimer() {
   }, 1000);
 }
 
+/**
+ * Stops the recording timer.
+ *
+ * @returns {void}
+ */
 function stopTimer() {
   clearInterval(timerInterval);
 }
@@ -212,6 +300,14 @@ recordBtn.addEventListener('click', async () => {
   }
 });
 
+/**
+ * Requests microphone access, sets up the Web Audio analyser for the
+ * visualizer, initialises MediaRecorder, and starts recording, speech
+ * recognition, the timer, and the live waveform animation.
+ *
+ * @async
+ * @returns {Promise<void>}
+ */
 async function startRecording() {
   try {
     stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
@@ -239,6 +335,12 @@ async function startRecording() {
   drawLive();
 }
 
+/**
+ * Stops an active recording session: halts speech recognition, MediaRecorder,
+ * microphone tracks, Web Audio context, animation frame, and timer.
+ *
+ * @returns {void}
+ */
 function stopRecording() {
   if (!mediaRecorder) return;
   stopRecognition();
@@ -252,6 +354,14 @@ function stopRecording() {
   drawIdle();
 }
 
+/**
+ * Finalises a recording after MediaRecorder stops: creates a Blob URL,
+ * generates the phonetic respelling from the captured transcript, and
+ * prepends a new recording item (label, audio player, download button,
+ * phonetic display) to the recordings list.
+ *
+ * @returns {void}
+ */
 function saveRecording() {
   const blob = new Blob(chunks, { type: 'audio/webm' });
   const url  = URL.createObjectURL(blob);
