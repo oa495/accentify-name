@@ -386,19 +386,8 @@ function saveRecording() {
   audio.controls = true;
   audio.src = url;
 
-  const dlBtn = document.createElement('button');
-  dlBtn.className = 'dl-btn';
-  dlBtn.textContent = 'Save';
-  dlBtn.addEventListener('click', () => {
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `recording-${recCount}.webm`;
-    a.click();
-  });
-
   item.appendChild(lbl);
   item.appendChild(audio);
-  item.appendChild(dlBtn);
 
   const phoneticEl = document.createElement('div');
   phoneticEl.className = 'phonetic';
