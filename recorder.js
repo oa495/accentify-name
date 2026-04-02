@@ -154,6 +154,97 @@ function textToRespelling(text) {
   return result || null;
 }
 
+// --- Accented spelling reconstruction (Itsekiri & Yoruba) ---
+
+/**
+ * Builds a reverse phoneme-to-letter map from the vowels.js `phonetics` object,
+ * supplemented with additional mappings produced by the respelling engine.
+ * Covers shared orthographic conventions of Itsekiri and Yoruba (ẹ, ọ, ṣ).
+ * Safely falls back if `phonetics` is not defined.
+ *
+ * @returns {Object.<string, string>} Map of respelling phoneme → accented letter.
+ *
+ * @example
+ * const map = buildReversePhonemeMap();
+ * map['oh'];  // 'ọ'
+ * map['ee'];  // 'i'
+ */
+function buildReversePhonemeMap() {
+  const map = {};
+  // Invert vowels.js phonetics: { accented letter → phoneme } becomes { phoneme → accented letter }
+  if (typeof phonetics !== 'undefined') {
+    for (const [letter, phoneme] of Object.entries(phonetics)) {
+      map[phoneme] = letter;
+    }
+  }
+  // Supplementary mappings for respelling phonemes that share sounds with Itsekiri/Yoruba letters
+  map['oh'] = 'ọ'; // 'oh' approximates the open-o (ọ) used in both languages
+  map['eh'] = 'ẹ'; // 'eh' approximates the open-e (ẹ) used in both languages
+  map['ah'] = 'a'; // 'ah' → plain 'a'
+  return map;
+}
+
+/**
+ * Converts a single respelling syllable to its accented Itsekiri/Yoruba representation
+ * by matching phoneme sequences (longest match first) against the reverse map.
+ * Unmatched characters are treated as consonants and passed through unchanged.
+ *
+ * @param {string} syl - A respelling syllable, e.g. 'oh', 'mah', 'yeh'.
+ * @param {Object.<string, string>} reverseMap - Phoneme-to-accented-letter map.
+ * @returns {string} Accented letters for this syllable, e.g. 'ọ', 'ma', 'yẹ'.
+ *
+ * @example
+ * const map = buildReversePhonemeMap();
+ * syllableToAccented('oh', map);  // 'ọ'
+ * syllableToAccented('yeh', map); // 'yẹ'
+ * syllableToAccented('lee', map); // 'li'
+ */
+function syllableToAccented(syl, reverseMap) {
+  // Sort keys by descending length so longer phonemes are matched before substrings
+  const keys = Object.keys(reverseMap).sort((a, b) => b.length - a.length);
+  let result = '', i = 0;
+  while (i < syl.length) {
+    let matched = false;
+    for (const key of keys) {
+      if (syl.startsWith(key, i)) {
+        result += reverseMap[key];
+        i += key.length; // advance past the matched phoneme sequence
+        matched = true;
+        break;
+      }
+    }
+    if (!matched) {
+      result += syl[i]; // consonant with no phoneme match — pass through unchanged
+      i++;
+    }
+  }
+  return result;
+}
+
+/**
+ * Converts a full hyphenated respelling string to its accented Itsekiri/Yoruba spelling.
+ * Handles multi-word names (double-space separated in respelling).
+ * Capitalises the first letter of each word as a proper noun.
+ *
+ * @param {string} respelling - Hyphenated respelling, e.g. 'oh-mah-yeh-lee'.
+ * @returns {string|null} Accented spelling e.g. 'Ọmayẹli', or null if input is empty.
+ *
+ * @example
+ * respellingToAccented('oh-mah-yeh-lee'); // 'Ọmayẹli'
+ * respellingToAccented('fah-tee-mah');    // 'Fatima'
+ */
+function respellingToAccented(respelling) {
+  if (!respelling) return null;
+  const reverseMap = buildReversePhonemeMap();
+  const result = respelling.split('  ') // multi-word names are double-space separated
+    .map(word => {
+      const accented = word.split('-').map(syl => syllableToAccented(syl, reverseMap)).join('');
+      return accented.charAt(0).toUpperCase() + accented.slice(1); // capitalise as a proper noun
+    })
+    .join(' ');
+  return result || null;
+}
+
 // --- Speech Recognition ---
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
@@ -392,7 +483,11 @@ function saveRecording() {
   const phoneticEl = document.createElement('div');
   phoneticEl.className = 'phonetic';
   if (respelling) {
+    const accentedName = respellingToAccented(respelling);
     phoneticEl.innerHTML = `<span class="phonetic-text">${respelling}</span>`;
+    if (accentedName) {
+      phoneticEl.innerHTML += `<span class="accented-name">${accentedName}</span>`;
+    }
   } else if (!SpeechRecognition) {
     phoneticEl.className += ' phonetic-unsupported';
     phoneticEl.textContent = 'Phonetic transcription requires Chrome or Edge.';

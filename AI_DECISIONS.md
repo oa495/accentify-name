@@ -14,6 +14,9 @@ Convert audio recordings to a human-readable pronunciation respelling in the for
 4. Syllables are joined with `-` to produce output like `ah-mah-yeh-lee`.
 5. No CDN or external dependencies — fully self-contained.
 
+### Target Languages
+Itsekiri and Yoruba — both share the same orthographic conventions (ẹ, ọ, ṣ) covered by `vowels.js`.
+
 ### Vowel Strategy
 Pure vowel mappings (Spanish/Japanese/Arabic style) were chosen because:
 - Non-English names use consistent, unambiguous vowel sounds
