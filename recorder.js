@@ -41,8 +41,8 @@ function syllabify(w) {
   for (let i = 0; i < w.length; i++) {
     syl += w[i];
     if (isV(w[i])) {
-      const rest = w.slice(i + 1);
-      const nextVIdx = [...rest].findIndex(c => isV(c));
+      const rest = w.slice(i + 1); // characters after the current vowel
+      const nextVIdx = [...rest].findIndex(c => isV(c)); // distance to the next vowel
       if (nextVIdx === -1) {
         // No more vowels — absorb remaining consonants into this syllable
         syl += rest;
@@ -54,7 +54,7 @@ function syllabify(w) {
       } else {
         // 2+ consonants — first stays here, rest go with next syllable
         syl += rest[0];
-        i++;
+        i++; // skip the consonant we just consumed
         syllables.push(syl);
         syl = '';
       }
@@ -93,9 +93,9 @@ function syllableToRespelling(syl) {
 
   let out = '', i = 0;
   while (i < syl.length) {
-    // Try longest match first (3, then 2 chars)
-    const m3 = syl.slice(i, i + 3);
-    const m2 = syl.slice(i, i + 2);
+    const m3 = syl.slice(i, i + 3); // candidate 3-char digraph
+    const m2 = syl.slice(i, i + 2); // candidate 2-char digraph
+    // Try longest match first to avoid splitting multi-char patterns
     if (m3 in DIGRAPHS) { out += DIGRAPHS[m3]; i += 3; continue; }
     if (m2 in DIGRAPHS) { out += DIGRAPHS[m2]; i += 2; continue; }
 
@@ -107,12 +107,12 @@ function syllableToRespelling(syl) {
       case 'i': out += 'ee'; break;
       case 'o': out += 'oh'; break;
       case 'u': out += 'oo'; break;
-      case 'y': out += (i === 0) ? 'y' : 'ee'; break;
+      case 'y': out += (i === 0) ? 'y' : 'ee'; break; // consonant at start, vowel elsewhere
       case 'j': out += 'y';  break; // handles Spanish j → y sound
-      case 'c': out += (next && 'ei'.includes(next)) ? 's' : 'k'; break;
-      case 'g': out += (next && 'ei'.includes(next)) ? 'j' : 'g'; break;
+      case 'c': out += (next && 'ei'.includes(next)) ? 's' : 'k'; break; // soft c before e/i
+      case 'g': out += (next && 'ei'.includes(next)) ? 'j' : 'g'; break; // soft g before e/i
       case 'q': out += 'k';  break;
-      case 'x': out += 'ks'; break;
+      case 'x': out += 'ks'; break; // x always expands to two sounds
       default:  out += c;
     }
     i++;
@@ -131,7 +131,7 @@ function syllableToRespelling(syl) {
  * wordToRespelling('Yuki');    // 'yoo-kee'
  */
 function wordToRespelling(word) {
-  const w = word.toLowerCase().replace(/[^a-z]/g, '');
+  const w = word.toLowerCase().replace(/[^a-z]/g, ''); // strip non-alpha and normalise case
   if (!w) return '';
   return syllabify(w).map(syllableToRespelling).filter(Boolean).join('-');
 }
@@ -176,10 +176,10 @@ function startRecognition() {
     let interim = '';
     for (let i = e.resultIndex; i < e.results.length; i++) {
       const t = e.results[i][0].transcript;
-      if (e.results[i].isFinal) finalAccum += t + ' ';
-      else interim += t;
+      if (e.results[i].isFinal) finalAccum += t + ' '; // append confirmed results permanently
+      else interim += t; // interim results may still change
     }
-    currentTranscript = (finalAccum + interim).trim();
+    currentTranscript = (finalAccum + interim).trim(); // combine stable + in-progress text
   };
 
   recognition.onerror = () => {};
@@ -209,7 +209,7 @@ function drawIdle() {
   ctx.clearRect(0, 0, w, h);
   ctx.fillStyle = '#12121a';
   ctx.fillRect(0, 0, w, h);
-  const mid = h / 2;
+  const mid = h / 2; // vertical centre for the flat line
   ctx.beginPath();
   ctx.strokeStyle = '#252535';
   ctx.lineWidth = 1.5;
@@ -228,9 +228,9 @@ function drawIdle() {
 function drawLive() {
   animFrameId = requestAnimationFrame(drawLive);
   const w = canvas.width, h = canvas.height;
-  const bufLen = analyser.frequencyBinCount;
+  const bufLen = analyser.frequencyBinCount; // number of samples in the time-domain buffer
   const data   = new Uint8Array(bufLen);
-  analyser.getByteTimeDomainData(data);
+  analyser.getByteTimeDomainData(data); // fill data with waveform amplitude values (0–255)
 
   ctx.clearRect(0, 0, w, h);
   ctx.fillStyle = '#12121a';
@@ -240,11 +240,11 @@ function drawLive() {
   ctx.strokeStyle = '#e84040';
   ctx.beginPath();
 
-  const sliceW = w / bufLen;
+  const sliceW = w / bufLen; // horizontal pixels per sample
   let x = 0;
   for (let i = 0; i < bufLen; i++) {
-    const v = data[i] / 128.0;
-    const y = (v * h) / 2;
+    const v = data[i] / 128.0; // normalise 0–255 to 0–2 range
+    const y = (v * h) / 2;     // scale to canvas height, centred at mid
     i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
     x += sliceW;
   }
@@ -276,8 +276,8 @@ function startTimer() {
   timerEl.textContent = '0:00';
   timerInterval = setInterval(() => {
     seconds++;
-    const m = Math.floor(seconds / 60);
-    const s = String(seconds % 60).padStart(2, '0');
+    const m = Math.floor(seconds / 60);          // whole minutes elapsed
+    const s = String(seconds % 60).padStart(2, '0'); // remaining seconds, zero-padded
     timerEl.textContent = `${m}:${s}`;
   }, 1000);
 }
@@ -318,9 +318,9 @@ async function startRecording() {
 
   audioCtx = new AudioContext();
   analyser = audioCtx.createAnalyser();
-  analyser.fftSize = 2048;
+  analyser.fftSize = 2048; // FFT size determines frequency resolution of the analyser
   const source = audioCtx.createMediaStreamSource(stream);
-  source.connect(analyser);
+  source.connect(analyser); // route mic input through the analyser (no output — avoids feedback)
 
   chunks = [];
   mediaRecorder = new MediaRecorder(stream);
@@ -345,7 +345,7 @@ function stopRecording() {
   if (!mediaRecorder) return;
   stopRecognition();
   mediaRecorder.stop();
-  stream.getTracks().forEach(t => t.stop());
+  stream.getTracks().forEach(t => t.stop()); // release the microphone
   audioCtx.close();
   cancelAnimationFrame(animFrameId);
   stopTimer();
@@ -364,15 +364,15 @@ function stopRecording() {
  */
 function saveRecording() {
   const blob = new Blob(chunks, { type: 'audio/webm' });
-  const url  = URL.createObjectURL(blob);
+  const url  = URL.createObjectURL(blob); // create an in-memory URL for the recorded audio
   recCount++;
 
   const now   = new Date();
   const label = `#${recCount} · ${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`;
   const duration = seconds;
-  const m = Math.floor(duration / 60), s = String(duration % 60).padStart(2, '0');
+  const m = Math.floor(duration / 60), s = String(duration % 60).padStart(2, '0'); // format mm:ss
 
-  const capturedTranscript = currentTranscript;
+  const capturedTranscript = currentTranscript; // snapshot before any next recording overwrites it
   const respelling = textToRespelling(capturedTranscript);
 
   const item = document.createElement('div');
@@ -413,8 +413,7 @@ function saveRecording() {
   }
   item.appendChild(phoneticEl);
 
-  recordingsList.prepend(item);
-
+  recordingsList.prepend(item); // newest recording appears at the top
   statusEl.textContent = `Saved recording ${recCount} (${m}:${s})`;
 }
 
